@@ -1,6 +1,6 @@
 # GuardianScreen - Professional Background Check Dashboard
 
-[![Deploy to Cloudflare]([cloudflarebutton])]([cloudflarebutton])
+[![Deploy to Cloudflare]([![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/bilbywilby/guardianscreen-professional-background-check-dashboard))]([![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/bilbywilby/guardianscreen-professional-background-check-dashboard))
 
 A professional, compliance-focused background check management platform featuring secure search execution, credit monitoring, and immutable audit logging. GuardianScreen provides an enterprise-grade dashboard for compliance officers and HR managers to conduct, manage, and audit criminal background checks with a stunning, responsive UI powered by Cloudflare Workers and Durable Objects.
 
@@ -114,7 +114,7 @@ bun run deploy
 
 This builds the frontend, bundles the Worker, and deploys everything.
 
-[![Deploy to Cloudflare]([cloudflarebutton])]([cloudflarebutton])
+[![Deploy to Cloudflare]([![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/bilbywilby/guardianscreen-professional-background-check-dashboard))]([![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/bilbywilby/guardianscreen-professional-background-check-dashboard))
 
 **Post-Deploy**:
 - Visit your `*.workers.dev` URL.
