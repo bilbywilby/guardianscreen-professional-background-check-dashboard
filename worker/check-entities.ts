@@ -31,12 +31,18 @@ export class CheckEntity extends IndexedEntity<BackgroundCheck> {
 export class CacheEntity extends IndexedEntity<CacheEntry> {
     static readonly entityName = "cache";
     static readonly indexName = "caches";
-    static readonly initialState: CacheEntry = { cacheKey: "", result: {}, timestamp: 0 };
+    static readonly initialState: CacheEntry = { id: "", cacheKey: "", result: {}, timestamp: 0 };
     static keyOf(state: CacheEntry): string { return state.cacheKey; }
     static async getCache(env: Env, cacheKey: string): Promise<CacheEntry | null> {
         const cache = new CacheEntity(env, cacheKey);
         if (await cache.exists()) {
-            return cache.getState();
+            const state = await cache.getState();
+            // Ensure id is consistent
+            if (state.id !== state.cacheKey) {
+                state.id = state.cacheKey;
+                await cache.save(state);
+            }
+            return state;
         }
         return null;
     }
@@ -138,7 +144,7 @@ export async function runMockCheck(env: Env, check: BackgroundCheck): Promise<{ 
     result = { status: 'Clear', resultData: { riskScore: 12, identity: { match: true, confidence: 99 }, offenses: [] } };
   }
   if (check.cacheKey && result.status !== 'Error') {
-      await CacheEntity.create(env, { cacheKey: check.cacheKey, result, timestamp: Date.now() });
+      await CacheEntity.create(env, { id: check.cacheKey, cacheKey: check.cacheKey, result, timestamp: Date.now() });
   }
   return result;
 }

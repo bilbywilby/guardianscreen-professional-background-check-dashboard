@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { BackgroundCheck, GuardianScreenConfig } from '@shared/types';
 import { Loader2 } from 'lucide-react';
 import { RiskScorecard } from '@/components/ui/RiskScorecard';
@@ -51,7 +51,7 @@ export function InvestigationPage() {
     queryKey: ['check', pollingCheckId],
     queryFn: () => api(`/api/checks/${pollingCheckId}`),
     enabled: !!pollingCheckId,
-    refetchInterval: (data) => (data?.status === 'Pending' ? 2000 : false),
+    refetchInterval: (query) => (query.state.data?.status === 'Pending' ? 2000 : false),
     refetchOnWindowFocus: false,
   });
   const form = useForm<CheckFormData>({

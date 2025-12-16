@@ -34,45 +34,17 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
   const riskScore = resultData.riskScore || 0;
   const offenses = resultData.offenses || [];
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    printWindow?.document.write(`
-      <html>
-        <head>
-          <title>Risk Scorecard - ${check.maskedName}</title>
-          <style>
-            body { font-family: sans-serif; margin: 2rem; }
-            h1, h2 { color: #111827; }
-            .score { font-size: 3rem; font-weight: bold; color: ${getRiskColor(riskScore).replace('text-','').replace('-500','')} }
-            .badge { display: inline-block; padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem; margin-right: 0.5rem; }
-            .felony { background-color: #FEE2E2; color: #991B1B; }
-            .misdemeanor { background-color: #F3F4F6; color: #374151; }
-            .details { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #E5E7EB; }
-          </style>
-        </head>
-        <body>
-          <h1>Risk Scorecard</h1>
-          <p><strong>Candidate:</strong> ${check.maskedName}</p>
-          <p><strong>Check ID:</strong> ${check.id}</p>
-          <hr/>
-          <h2>Risk Score: <span class="score">${riskScore}%</span></h2>
-          <h2>Offenses Found: ${offenses.length}</h2>
-          ${offenses.map((offense: any) => `
-            <div class="details">
-              <p><span class="badge ${offense.level.toLowerCase()}">${offense.level}</span><strong>${offense.date}</strong> at ${offense.location}</p>
-              <p>${offense.details}</p>
-            </div>
-          `).join('')}
-          <p style="margin-top: 2rem; font-size: 0.75rem; color: #6B7281;">Generated on ${new Date().toLocaleString()}</p>
-        </body>
-      </html>
-    `);
-    printWindow?.document.close();
-    printWindow?.print();
+    window.print();
   };
   return (
-    <Card className="w-full">
+    <Card className="w-full print-container relative">
+      <div className="print-only absolute inset-0 -z-10 flex items-center justify-center">
+        <p className="text-6xl font-light text-gray-200 dark:text-gray-800 opacity-50 transform -rotate-45">
+          Official GuardianScreen Report — Confidential
+        </p>
+      </div>
       <CardHeader>
-        <div className="flex justify-between items-start">
+        <div className="no-print flex justify-between items-start">
             <div>
                 <CardTitle>Risk Scorecard</CardTitle>
                 <CardDescription>For {check.maskedName}</CardDescription>
@@ -87,7 +59,16 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
           <div className={`text-6xl font-bold ${getRiskColor(riskScore)}`}>{riskScore}%</div>
           <p className="text-muted-foreground">Calculated Risk Score</p>
         </div>
-        <Accordion type="single" collapsible className="w-full">
+        {riskScore > 40 && (
+          <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 rounded-lg flex items-start gap-3">
+            <ShieldAlert className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-yellow-900 dark:text-yellow-200">FCRA Pre-Adverse Action Notice</p>
+              <p className="text-sm text-yellow-800 dark:text-yellow-300">Provide report + FCRA rights summary before action.</p>
+            </div>
+          </div>
+        )}
+        <Accordion type="single" collapsible className="w-full" defaultValue="offenses">
           <AccordionItem value="offenses">
             <AccordionTrigger>
                 <div className="flex items-center gap-2">
@@ -99,7 +80,7 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
               {offenses.length > 0 ? (
                 <ul className="space-y-3 pl-2">
                   {offenses.map((offense: any, index: number) => (
-                    <li key={index} className="border-l-2 pl-4">
+                    <li key={index} className="border-l-2 pl-4 offense-item">
                       <div className="flex items-center gap-2">
                         <Badge variant={getOffenseVariant(offense.level)}>{offense.level}</Badge>
                         <span className="text-sm font-medium">{offense.date} - {offense.location}</span>
@@ -120,7 +101,7 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
                     <span>Pre-Adverse Action Notice</span>
                 </div>
             </AccordionTrigger>
-            <AccordionContent className="space-y-3">
+            <AccordionContent className="space-y-3 no-print">
                 <p className="text-sm text-muted-foreground">If you are considering taking adverse action based on this report, you must provide the candidate with a copy of this report and a summary of their rights under the FCRA.</p>
                 <Button>Generate Pre-Adverse Action Letter</Button>
             </AccordionContent>
