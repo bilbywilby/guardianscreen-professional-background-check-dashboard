@@ -2,22 +2,14 @@ import type { BackgroundCheck, Offense } from '@shared/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Printer, ShieldCheck, ShieldAlert, FileWarning, AlertOctagon, Users, Activity, Globe, Flag } from 'lucide-react';
+import { Printer, ShieldCheck, ShieldAlert, FileWarning, MessageCircle } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { sourceConfig } from '@shared/types';
 interface RiskScorecardProps {
   check: BackgroundCheck;
 }
-const sourceConfig = {
-  criminal: { icon: ShieldCheck, color: 'text-blue-500', label: 'Criminal Database' },
-  nsopw: { icon: ShieldAlert, color: 'text-red-500', label: 'Sex Offender Registry (NSOPW)' },
-  ofac: { icon: AlertOctagon, color: 'text-orange-500', label: 'Sanctions List (OFAC)' },
-  dmf: { icon: Users, color: 'text-indigo-500', label: 'DMF Death Records' },
-  oig: { icon: Activity, color: 'text-green-500', label: 'OIG LEIE Exclusions' },
-  uk: { icon: Globe, color: 'text-purple-500', label: 'UK Sanctions' },
-  eun: { icon: Flag, color: 'text-gray-500', label: 'EU/UN Sanctions' },
-};
 const getRiskColor = (score: number) => {
   if (score > 75) return 'text-red-500';
   if (score > 40) return 'text-yellow-500';
@@ -25,11 +17,16 @@ const getRiskColor = (score: number) => {
 };
 const getOffenseVariant = (level: string): "destructive" | "secondary" | "outline" => {
     switch (level.toLowerCase()) {
-        case 'felony': return 'destructive';
-        case 'sex offense': return 'destructive';
-        case 'sanction': return 'destructive';
-        case 'exclusion': return 'destructive';
-        case 'deceased': return 'secondary';
+        case 'felony':
+        case 'sex offense':
+        case 'sanction':
+        case 'exclusion':
+        case 'high':
+             return 'destructive';
+        case 'medium':
+            return 'secondary';
+        case 'deceased': 
+            return 'secondary';
         default: return 'outline';
     }
 };
@@ -48,6 +45,8 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
   const riskScore = resultData.riskScore || 0;
   const offenses: Offense[] = resultData.offenses || [];
   const sources: string[] = resultData.sources || [];
+  const reputationalOffenses = offenses.filter(o => o.pillar === 'reputation');
+  const otherOffenses = offenses.filter(o => o.pillar !== 'reputation');
   const handlePrint = () => {
     window.print();
   };
@@ -108,18 +107,18 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
             </div>
           </div>
         )}
-        <Accordion type="single" collapsible className="w-full" defaultValue="offenses">
+        <Accordion type="multiple" className="w-full" defaultValue={['offenses', 'reputation']}>
           <AccordionItem value="offenses">
             <AccordionTrigger>
                 <div className="flex items-center gap-2">
-                    {offenses.length > 0 ? <ShieldAlert className="h-5 w-5 text-yellow-500" /> : <ShieldCheck className="h-5 w-5 text-green-500" />}
-                    <span>{offenses.length} Offenses Found</span>
+                    {otherOffenses.length > 0 ? <ShieldAlert className="h-5 w-5 text-yellow-500" /> : <ShieldCheck className="h-5 w-5 text-green-500" />}
+                    <span>{otherOffenses.length} Offenses Found</span>
                 </div>
             </AccordionTrigger>
             <AccordionContent>
-              {offenses.length > 0 ? (
-                <ul className={cn("space-y-4 pl-2", offenses.length > 1 && "md:grid md:grid-cols-2 md:gap-x-6 md:space-y-0")}>
-                  {offenses.map((offense, index) => {
+              {otherOffenses.length > 0 ? (
+                <ul className={cn("space-y-4 pl-2", otherOffenses.length > 1 && "md:grid md:grid-cols-2 md:gap-x-6 md:space-y-0")}>
+                  {otherOffenses.map((offense, index) => {
                     const sourceInfo = sourceConfig[offense.source as keyof typeof sourceConfig];
                     const SourceIcon = sourceInfo?.icon;
                     return (
@@ -150,6 +149,31 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
                 </ul>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">No adverse records found.</p>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="reputation">
+            <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5" />
+                    <span>{reputationalOffenses.length} Reputational Flags</span>
+                </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              {reputationalOffenses.length > 0 ? (
+                <ul className="space-y-4 pl-2">
+                  {reputationalOffenses.map((offense, index) => (
+                    <li key={index} className="border-l-2 pl-4 pt-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant={getOffenseVariant(offense.level)}>{offense.level} Severity</Badge>
+                        <span className="text-sm font-medium">{offense.date} - {offense.location}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1.5">{offense.details}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">No reputational flags found.</p>
               )}
             </AccordionContent>
           </AccordionItem>

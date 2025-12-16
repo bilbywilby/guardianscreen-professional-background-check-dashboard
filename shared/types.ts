@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, AlertOctagon, Users, Activity, Globe, Flag, MessageCircle } from 'lucide-react';
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -79,3 +80,13 @@ export interface SourceInfo {
     label: string;
     color: string;
 }
+export const sourceConfig: Record<string, SourceInfo> = {
+  criminal: { icon: ShieldCheck, label: 'Criminal Database', color: 'text-blue-500' },
+  nsopw: { icon: ShieldAlert, label: 'Sex Offender Registry (NSOPW)', color: 'text-red-500' },
+  ofac: { icon: AlertOctagon, label: 'OFAC Sanctions', color: 'text-orange-500' },
+  dmf: { icon: Users, label: 'DMF Death Records', color: 'text-indigo-500' },
+  oig: { icon: Activity, label: 'OIG LEIE Exclusions', color: 'text-green-500' },
+  uk: { icon: Globe, label: 'UK Sanctions', color: 'text-purple-500' },
+  eun: { icon: Flag, label: 'EU/UN Sanctions', color: 'text-gray-500' },
+  reputational: { icon: MessageCircle, label: 'Reputational Risk (NLP Scan)', color: 'text-pink-500' },
+};

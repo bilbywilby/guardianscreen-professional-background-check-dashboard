@@ -1,6 +1,5 @@
 import { IndexedEntity, Entity } from "./core-utils";
-import type { BackgroundCheck, GuardianScreenConfig, CheckStatus, AuditEntry, CacheEntry } from "@shared/types";
-import { sourceConfig } from "@shared/types";
+import type { BackgroundCheck, GuardianScreenConfig, CheckStatus, AuditEntry, CacheEntry, Offense } from "@shared/types";
 import type { Env } from './core-utils';
 // CHECK ENTITY: one DO instance per background check
 export class CheckEntity extends IndexedEntity<BackgroundCheck> {
@@ -154,6 +153,28 @@ const euUnMock = async (_check: BackgroundCheck) => {
     }
     return { source: 'eun', pillar: 'sanctions', identityMatch: true, offenses: [] };
 };
+const reputationalMock = async (_check: BackgroundCheck) => {
+    await new Promise(res => setTimeout(res, 450 + Math.random() * 250));
+    if (Math.random() < 0.20) {
+        const rand = Math.random();
+        const severity = rand < 0.1 ? 'High' : rand < 0.4 ? 'Medium' : 'Low';
+        const date = new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        return {
+            source: 'reputational',
+            pillar: 'reputation',
+            identityMatch: true,
+            offenses: [{
+                level: severity,
+                date: date,
+                location: 'Social/News Scan',
+                details: 'NLP flags detected potential hate speech or toxic language.',
+                source: 'reputational',
+                pillar: 'reputation'
+            }]
+        };
+    }
+    return { source: 'reputational', pillar: 'reputation', identityMatch: true, offenses: [] };
+};
 export async function runMockCheck(env: Env, check: BackgroundCheck): Promise<{ status: CheckStatus, resultData: Record<string, any> }> {
   const configEntity = new ConfigEntity(env);
   const config = await configEntity.getState();
@@ -180,7 +201,7 @@ export async function runMockCheck(env: Env, check: BackgroundCheck): Promise<{ 
     }
     return result;
   }
-  const sources = [criminalMock(check), nsopwMock(check), ofacMock(check), dmfMock(check), oigMock(check), ukMock(check), euUnMock(check)];
+  const sources = [criminalMock(check), nsopwMock(check), ofacMock(check), dmfMock(check), oigMock(check), ukMock(check), euUnMock(check), reputationalMock(check)];
   const results = await Promise.allSettled(sources);
   const successfulResults = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<any>).value);
   const failedSources = results.length - successfulResults.length;
@@ -189,12 +210,20 @@ export async function runMockCheck(env: Env, check: BackgroundCheck): Promise<{ 
     return { status: 'Error', resultData: { error: 'All external data sources failed.' } };
   }
   const allOffenses = successfulResults.flatMap(r => r.offenses);
-  const uniqueOffenses = Array.from(new Map(allOffenses.map(o => [`${o.date}-${o.location}`, o])).values());
+  const uniqueOffenses = Array.from(new Map(allOffenses.map(o => [`${o.date}-${o.location}-${o.details}`, o])).values());
   const hitSources = successfulResults.filter(r => r.identityMatch && r.offenses.length > 0);
   const uniquePillars = new Set(hitSources.map(r => r.pillar));
-  const baseRiskScore = 10 + uniqueOffenses.length * 25;
+  const baseRiskScore = 10 + uniqueOffenses.filter(o => o.pillar !== 'reputation').length * 25;
   const riskMultiplier = 1 + (uniquePillars.size > 1 ? (uniquePillars.size - 1) * 0.15 : 0);
-  const finalRiskScore = Math.min(100, Math.round(baseRiskScore * riskMultiplier));
+  let reputationalPoints = 0;
+  const reputationalHit = hitSources.find(r => r.source === 'reputational');
+  if (reputationalHit && reputationalHit.offenses.length > 0) {
+      const severity = reputationalHit.offenses[0].level;
+      if (severity === 'High') reputationalPoints = 30;
+      else if (severity === 'Medium') reputationalPoints = 20;
+      else reputationalPoints = 10;
+  }
+  const finalRiskScore = Math.min(100, Math.round(baseRiskScore * riskMultiplier) + reputationalPoints);
   const finalStatus: CheckStatus = uniqueOffenses.length > 0 ? 'Hit' : 'Clear';
   const result = {
     status: finalStatus,
