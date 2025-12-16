@@ -10,11 +10,28 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, ScatterChart, Scatter, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 const MOCK_CHART_DATA = Array.from({ length: 30 }, (_, i) => ({
   day: i,
   searches: Math.floor(Math.random() * (20 - 5 + 1) + 5),
 }));
+const mockGeoData = [
+    { state: 'CA', hits: 12, lat: 36.77, lon: -119.41 },
+    { state: 'TX', hits: 8, lat: 31.96, lon: -99.90 },
+    { state: 'NY', hits: 15, lat: 40.71, lon: -74.00 },
+    { state: 'FL', hits: 6, lat: 27.66, lon: -81.51 },
+    { state: 'IL', hits: 9, lat: 40.63, lon: -89.39 },
+    { state: 'PA', hits: 4, lat: 41.20, lon: -77.19 },
+    { state: 'OH', hits: 7, lat: 40.41, lon: -82.90 },
+    { state: 'GA', hits: 5, lat: 32.16, lon: -82.90 },
+    { state: 'NC', hits: 3, lat: 35.75, lon: -79.01 },
+    { state: 'MI', hits: 11, lat: 44.31, lon: -85.60 },
+];
+const getColorByHits = (hits: number) => {
+    if (hits > 10) return 'hsl(var(--destructive))';
+    if (hits > 5) return 'hsl(var(--chart-3))';
+    return 'hsl(var(--chart-1))';
+};
 function maskName(name: string): string {
     if (!name) return 'Unknown';
     const parts = name.split(' ');
@@ -55,7 +72,7 @@ export function DashboardHome() {
     queryKey: ['checks', { limit: 5 }],
     queryFn: () => api('/api/checks?limit=5'),
   });
-  const totalChecks = checksData?.items?.length || 0; // This is just for the current page, a real app would have a total count endpoint.
+  const totalChecks = checksData?.items?.length || 0;
   const recentHits = checksData?.items?.filter(c => c.status === 'Hit').length || 0;
   const error = configError || checksError;
   return (
@@ -85,7 +102,7 @@ export function DashboardHome() {
           <StatCard title="Recent Hits" value={recentHits} icon={AlertTriangle} description="Potential flags found" isLoading={areChecksLoading} />
           <StatCard title="Compliance Score" value="98.7%" icon={BarChart} description="Based on audit log activity" isLoading={false} />
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-7">
           <Card className="lg:col-span-4">
             <CardHeader>
               <CardTitle>Search Volume</CardTitle>
@@ -105,33 +122,65 @@ export function DashboardHome() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
-          <Card className="lg:col-span-3">
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>The latest background checks initiated.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {areChecksLoading ? (
-                <div className="space-y-4">
-                  {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {checksData?.items.map(check => (
-                    <div key={check.id} className="flex items-center">
-                      <div className="flex-1 space-y-1">
-                        <p className="text-sm font-medium leading-none">{check.maskedName || maskName(check.name)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(check.createdAt), { addSuffix: true })}
-                        </p>
+          <div className="lg:col-span-3 flex flex-col gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>The latest background checks initiated.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {areChecksLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {checksData?.items.map(check => (
+                      <div key={check.id} className="flex items-center">
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium leading-none">{check.maskedName || maskName(check.name)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(check.createdAt), { addSuffix: true })}
+                          </p>
+                        </div>
+                        <StatusBadge status={check.status} />
                       </div>
-                      <StatusBadge status={check.status} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Risk Heatmap</CardTitle>
+                <CardDescription>Geographic distribution of recent hits.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={250}>
+                  <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                    <XAxis type="number" dataKey="lon" name="longitude" hide />
+                    <YAxis type="number" dataKey="lat" name="latitude" hide />
+                    <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                                <div className="bg-popover text-popover-foreground p-2 rounded-md border shadow-sm">
+                                    <p className="font-bold">{`${data.state}: ${data.hits} hits`}</p>
+                                </div>
+                            );
+                        }
+                        return null;
+                    }} />
+                    <Scatter name="States" data={mockGeoData} fill="#8884d8">
+                      {mockGeoData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={getColorByHits(entry.hits)} r={5 + entry.hits} />
+                      ))}
+                    </Scatter>
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

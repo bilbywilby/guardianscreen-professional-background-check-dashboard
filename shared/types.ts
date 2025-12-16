@@ -1,19 +1,34 @@
+import type { LucideIcon } from 'lucide-react';
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
 }
 export type CheckStatus = 'Clear' | 'Hit' | 'Pending' | 'Error';
+export interface Offense {
+    level: string;
+    date: string;
+    location: string;
+    details: string;
+    source: string;
+    pillar?: string;
+}
 export interface BackgroundCheck {
   id: string;
-  name: string; // This will be the raw name for creation, but maskedName should be preferred for display
+  name: string;
   maskedName: string;
-  dob: string; // YYYY-MM-DD
-  ssn: string; // Last 4 digits
+  dob: string;
+  ssn: string;
   status: CheckStatus;
-  createdAt: number; // epoch millis
-  completedAt?: number; // epoch millis
-  resultData?: Record<string, any>;
+  createdAt: number;
+  completedAt?: number;
+  resultData?: {
+    riskScore?: number;
+    identity?: { match: boolean; confidence: number };
+    offenses?: Offense[];
+    sources?: string[];
+    error?: string;
+  };
   cacheKey?: string;
 }
 export interface GuardianScreenConfig {
@@ -58,4 +73,9 @@ export interface CacheEntry {
   cacheKey: string;
   result: any;
   timestamp: number;
+}
+export interface SourceInfo {
+    icon: LucideIcon;
+    label: string;
+    color: string;
 }

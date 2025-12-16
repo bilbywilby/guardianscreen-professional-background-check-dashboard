@@ -1,8 +1,8 @@
-import type { BackgroundCheck } from '@shared/types';
+import type { BackgroundCheck, Offense } from '@shared/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Printer, ShieldCheck, ShieldAlert, FileWarning, AlertOctagon } from 'lucide-react';
+import { Printer, ShieldCheck, ShieldAlert, FileWarning, AlertOctagon, Users, Activity, Globe, Flag } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,10 @@ const sourceConfig = {
   criminal: { icon: ShieldCheck, color: 'text-blue-500', label: 'Criminal Database' },
   nsopw: { icon: ShieldAlert, color: 'text-red-500', label: 'Sex Offender Registry (NSOPW)' },
   ofac: { icon: AlertOctagon, color: 'text-orange-500', label: 'Sanctions List (OFAC)' },
+  dmf: { icon: Users, color: 'text-indigo-500', label: 'DMF Death Records' },
+  oig: { icon: Activity, color: 'text-green-500', label: 'OIG LEIE Exclusions' },
+  uk: { icon: Globe, color: 'text-purple-500', label: 'UK Sanctions' },
+  eun: { icon: Flag, color: 'text-gray-500', label: 'EU/UN Sanctions' },
 };
 const getRiskColor = (score: number) => {
   if (score > 75) return 'text-red-500';
@@ -24,16 +28,10 @@ const getOffenseVariant = (level: string): "destructive" | "secondary" | "outlin
         case 'felony': return 'destructive';
         case 'sex offense': return 'destructive';
         case 'sanction': return 'destructive';
-        case 'misdemeanor': return 'secondary';
+        case 'exclusion': return 'destructive';
+        case 'deceased': return 'secondary';
         default: return 'outline';
     }
-};
-type Offense = {
-    level: string;
-    date: string;
-    location: string;
-    details: string;
-    source: string;
 };
 export function RiskScorecard({ check }: RiskScorecardProps) {
   const { resultData } = check;
@@ -77,19 +75,28 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
           <p className="text-muted-foreground">Calculated Risk Score</p>
         </div>
         {sources.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-1.5">
+            <div className="flex flex-wrap justify-center items-center gap-1.5">
                 <span className="text-sm font-medium text-muted-foreground self-center mr-1">Sources:</span>
-                {sources.map((source) => {
-                    const sourceInfo = sourceConfig[source as keyof typeof sourceConfig];
-                    if (!sourceInfo) return null;
-                    const Icon = sourceInfo.icon;
-                    return (
-                        <Badge key={source} variant="secondary" className="flex items-center gap-1.5 hover:shadow-md transition-shadow">
-                            <Icon className={cn("h-3.5 w-3.5 shrink-0", sourceInfo.color)} />
-                            <span>{sourceInfo.label || source}</span>
-                        </Badge>
-                    );
-                })}
+                <TooltipProvider>
+                    {sources.map((source) => {
+                        const sourceInfo = sourceConfig[source as keyof typeof sourceConfig];
+                        if (!sourceInfo) return null;
+                        const IconComp = sourceInfo.icon;
+                        return (
+                            <Tooltip key={source}>
+                                <TooltipTrigger asChild>
+                                    <Badge variant="secondary" className="group relative overflow-visible flex items-center gap-1.5 hover:shadow-md transition-shadow">
+                                        <IconComp className={cn("h-3.5 w-3.5 shrink-0 group-hover:scale-105 transition-all", sourceInfo.color)} />
+                                        <span>{source.toUpperCase()}</span>
+                                    </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{sourceInfo.label}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        );
+                    })}
+                </TooltipProvider>
             </div>
         )}
         {riskScore > 40 && (

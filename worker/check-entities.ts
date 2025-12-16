@@ -1,5 +1,6 @@
 import { IndexedEntity, Entity } from "./core-utils";
 import type { BackgroundCheck, GuardianScreenConfig, CheckStatus, AuditEntry, CacheEntry } from "@shared/types";
+import { sourceConfig } from "@shared/types";
 import type { Env } from './core-utils';
 // CHECK ENTITY: one DO instance per background check
 export class CheckEntity extends IndexedEntity<BackgroundCheck> {
@@ -20,15 +21,13 @@ export class CacheEntity extends IndexedEntity<CacheEntry> {
     static readonly entityName = "cache";
     static readonly indexName = "caches";
     static readonly initialState: CacheEntry = { id: "", cacheKey: "", result: {}, timestamp: 0 };
-    // This override is now compatible with the base class signature `keyOf<U extends { id: string }>(state: U): string`
-    static override keyOf(state: { id: string }): string { 
-        return (state as CacheEntry).cacheKey; 
+    static override keyOf(state: { id: string }): string {
+        return (state as CacheEntry).cacheKey;
     }
     static async getCache(env: Env, cacheKey: string): Promise<CacheEntry | null> {
         const cache = new CacheEntity(env, cacheKey);
         if (await cache.exists()) {
             const state = await cache.getState();
-            // Ensure id is consistent with the key for IndexedEntity
             if (state.id !== state.cacheKey) {
                 const updatedState = { ...state, id: state.cacheKey };
                 await cache.save(updatedState);
@@ -100,28 +99,61 @@ export class AuditEntity extends IndexedEntity<AuditEntry> {
   };
 }
 // --- Deep Search Mock Sources ---
+const getDobYear = (dob: string) => parseInt(dob.split('-')[0], 10);
 const criminalMock = async (_check: BackgroundCheck) => {
     await new Promise(res => setTimeout(res, 400 + Math.random() * 300));
-    if (Math.random() < 0.4) { // 40% hit rate
-        return { source: 'criminal', identityMatch: true, offenses: [{ level: 'Felony', date: '2021-08-15', location: 'Springfield, USA', details: 'Case #CR-2021-12345. Unauthorized distribution of donuts.', source: 'criminal' }] };
+    if (Math.random() < 0.4) {
+        return { source: 'criminal', pillar: 'criminal', identityMatch: true, offenses: [{ level: 'Felony', date: '2021-08-15', location: 'Springfield, USA', details: 'Case #CR-2021-12345. Unauthorized distribution of donuts.', source: 'criminal', pillar: 'criminal' }] };
     }
-    return { source: 'criminal', identityMatch: true, offenses: [] };
+    return { source: 'criminal', pillar: 'criminal', identityMatch: true, offenses: [] };
 };
 const nsopwMock = async (_check: BackgroundCheck) => {
     await new Promise(res => setTimeout(res, 600 + Math.random() * 400));
-    if (Math.random() < 0.15) { // 15% hit rate
-        return { source: 'nsopw', identityMatch: true, offenses: [{ level: 'Sex Offense', date: '2018-05-10', location: 'Capital City, USA', details: 'Registry ID #NS-98765. Failure to register.', source: 'nsopw' }] };
+    if (Math.random() < 0.15) {
+        return { source: 'nsopw', pillar: 'criminal', identityMatch: true, offenses: [{ level: 'Sex Offense', date: '2018-05-10', location: 'Capital City, USA', details: 'Registry ID #NS-98765. Failure to register.', source: 'nsopw', pillar: 'criminal' }] };
     }
-    return { source: 'nsopw', identityMatch: true, offenses: [] };
+    return { source: 'nsopw', pillar: 'criminal', identityMatch: true, offenses: [] };
 };
 const ofacMock = async (_check: BackgroundCheck) => {
     await new Promise(res => setTimeout(res, 300 + Math.random() * 200));
-    if (Math.random() < 0.05) { // 5% hit rate
-        return { source: 'ofac', identityMatch: true, offenses: [{ level: 'Sanction', date: '2022-01-20', location: 'International', details: 'Specially Designated National (SDN) List match.', source: 'ofac' }] };
+    if (Math.random() < 0.05) {
+        return { source: 'ofac', pillar: 'sanctions', identityMatch: true, offenses: [{ level: 'Sanction', date: '2022-01-20', location: 'International', details: 'Specially Designated National (SDN) List match.', source: 'ofac', pillar: 'sanctions' }] };
     }
-    return { source: 'ofac', identityMatch: false, offenses: [] };
+    return { source: 'ofac', pillar: 'sanctions', identityMatch: false, offenses: [] };
 };
-// Mock external API call with caching and circuit breaker logic
+const dmfMock = async (check: BackgroundCheck) => {
+    await new Promise(res => setTimeout(res, 250 + Math.random() * 200));
+    const dobYear = getDobYear(check.dob);
+    const isOldEnough = (new Date().getFullYear() - dobYear) > 50;
+    if (isOldEnough && Math.random() < 0.05) {
+        const deathYear = dobYear + 65 + Math.floor(Math.random() * 15);
+        return { source: 'dmf', pillar: 'identity', identityMatch: true, offenses: [{ level: 'Deceased', date: `${deathYear}-03-22`, location: 'Social Security Administration', details: 'Match found in Death Master File.', source: 'dmf', pillar: 'identity' }] };
+    }
+    return { source: 'dmf', pillar: 'identity', identityMatch: true, offenses: [] };
+};
+const oigMock = async (_check: BackgroundCheck) => {
+    await new Promise(res => setTimeout(res, 350 + Math.random() * 250));
+    if (Math.random() < 0.08) {
+        return { source: 'oig', pillar: 'health', identityMatch: true, offenses: [{ level: 'Exclusion', date: '2020-11-01', location: 'HHS/OIG', details: 'Excluded from federal healthcare programs.', source: 'oig', pillar: 'health' }] };
+    }
+    return { source: 'oig', pillar: 'health', identityMatch: true, offenses: [] };
+};
+const ukMock = async (check: BackgroundCheck) => {
+    await new Promise(res => setTimeout(res, 500 + Math.random() * 300));
+    const dobYear = getDobYear(check.dob);
+    const mockHitYear = 1975;
+    if (Math.abs(dobYear - mockHitYear) <= 3 && Math.random() < 0.03) {
+        return { source: 'uk', pillar: 'sanctions', identityMatch: true, offenses: [{ level: 'Sanction', date: '2019-07-18', location: 'United Kingdom', details: 'Match on UK sanctions list.', source: 'uk', pillar: 'sanctions' }] };
+    }
+    return { source: 'uk', pillar: 'sanctions', identityMatch: true, offenses: [] };
+};
+const euUnMock = async (_check: BackgroundCheck) => {
+    await new Promise(res => setTimeout(res, 550 + Math.random() * 350));
+    if (Math.random() < 0.04) {
+        return { source: 'eun', pillar: 'sanctions', identityMatch: true, offenses: [{ level: 'Sanction', date: '2021-02-25', location: 'EU/UN', details: 'Consolidated EU/UN sanctions list match.', source: 'eun', pillar: 'sanctions' }] };
+    }
+    return { source: 'eun', pillar: 'sanctions', identityMatch: true, offenses: [] };
+};
 export async function runMockCheck(env: Env, check: BackgroundCheck): Promise<{ status: CheckStatus, resultData: Record<string, any> }> {
   const configEntity = new ConfigEntity(env);
   const config = await configEntity.getState();
@@ -131,10 +163,8 @@ export async function runMockCheck(env: Env, check: BackgroundCheck): Promise<{ 
           return cached!.result;
       }
   }
-  // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 200));
   if (config.mockMode) {
-    // Original single-source mock for basic mode
     const random = Math.random();
     let result: { status: CheckStatus, resultData: Record<string, any> };
     if (random < 0.1) {
@@ -150,8 +180,7 @@ export async function runMockCheck(env: Env, check: BackgroundCheck): Promise<{ 
     }
     return result;
   }
-  // Deep Search multi-source mock
-  const sources = [criminalMock(check), nsopwMock(check), ofacMock(check)];
+  const sources = [criminalMock(check), nsopwMock(check), ofacMock(check), dmfMock(check), oigMock(check), ukMock(check), euUnMock(check)];
   const results = await Promise.allSettled(sources);
   const successfulResults = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<any>).value);
   const failedSources = results.length - successfulResults.length;
@@ -162,9 +191,9 @@ export async function runMockCheck(env: Env, check: BackgroundCheck): Promise<{ 
   const allOffenses = successfulResults.flatMap(r => r.offenses);
   const uniqueOffenses = Array.from(new Map(allOffenses.map(o => [`${o.date}-${o.location}`, o])).values());
   const hitSources = successfulResults.filter(r => r.identityMatch && r.offenses.length > 0);
-  const hitSourceNames = hitSources.map(r => r.source);
+  const uniquePillars = new Set(hitSources.map(r => r.pillar));
   const baseRiskScore = 10 + uniqueOffenses.length * 25;
-  const riskMultiplier = 1 + (hitSources.length > 1 ? (hitSources.length - 1) * 0.20 : 0);
+  const riskMultiplier = 1 + (uniquePillars.size > 1 ? (uniquePillars.size - 1) * 0.15 : 0);
   const finalRiskScore = Math.min(100, Math.round(baseRiskScore * riskMultiplier));
   const finalStatus: CheckStatus = uniqueOffenses.length > 0 ? 'Hit' : 'Clear';
   const result = {
