@@ -85,7 +85,7 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
                     const Icon = sourceInfo.icon;
                     return (
                         <Badge key={source} variant="secondary" className="flex items-center gap-1.5 hover:shadow-md transition-shadow">
-                            <Icon className={cn("h-3.5 w-3.5 shrink-0", sourceInfo.color)} title={sourceInfo.label} />
+                            <Icon className={cn("h-3.5 w-3.5 shrink-0", sourceInfo.color)} />
                             <span>{sourceInfo.label || source}</span>
                         </Badge>
                     );
