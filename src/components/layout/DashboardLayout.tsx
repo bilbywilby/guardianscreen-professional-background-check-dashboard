@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Menu,
   X,
+  ClipboardList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -17,6 +18,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Investigation', href: '/investigation', icon: FileSearch },
   { name: 'Case Files', href: '/history', icon: History },
+  { name: 'Audit Log', href: '/audit', icon: ClipboardList },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 function NavLinks() {
@@ -27,6 +29,7 @@ function NavLinks() {
         <NavLink
           key={item.name}
           to={item.href}
+          end={item.href === '/'}
           className={({ isActive }) =>
             cn(
               'group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',

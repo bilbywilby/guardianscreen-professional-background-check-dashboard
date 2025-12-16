@@ -25,3 +25,24 @@ export interface PaginatedResponse<T> {
   items: T[];
   next: string | null;
 }
+export interface User {
+  id: string;
+  name: string;
+}
+export interface Chat {
+  id: string;
+  title: string;
+}
+export interface ChatMessage {
+  id: string;
+  chatId: string;
+  userId: string;
+  text: string;
+  ts: number;
+}
+export interface AuditEntry {
+  id:string;
+  timestamp: number;
+  action: string;
+  details: Record<string, any>;
+}

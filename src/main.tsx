@@ -14,6 +14,7 @@ import { DashboardHome } from '@/pages/DashboardHome';
 import { InvestigationPage } from '@/pages/InvestigationPage';
 import { HistoryPage } from '@/pages/HistoryPage';
 import { SettingsVault } from '@/pages/SettingsVault';
+import { AuditPage } from '@/pages/AuditPage';
 const queryClient = new QueryClient();
 const router = createBrowserRouter([
   {
@@ -24,6 +25,7 @@ const router = createBrowserRouter([
       { index: true, element: <DashboardHome /> },
       { path: "investigation", element: <InvestigationPage /> },
       { path: "history", element: <HistoryPage /> },
+      { path: "audit", element: <AuditPage /> },
       { path: "settings", element: <SettingsVault /> },
     ],
   },

@@ -1,16 +1,17 @@
 import { IndexedEntity, Entity } from "./core-utils";
-import type { BackgroundCheck, GuardianScreenConfig, CheckStatus } from "@shared/types";
+import type { BackgroundCheck, GuardianScreenConfig, CheckStatus, AuditEntry } from "@shared/types";
+import type { Env } from './core-utils';
 // CHECK ENTITY: one DO instance per background check
 export class CheckEntity extends IndexedEntity<BackgroundCheck> {
   static readonly entityName = "check";
   static readonly indexName = "checks";
-  static readonly initialState: BackgroundCheck = { 
-    id: "", 
-    name: "", 
-    dob: "", 
-    ssn: "", 
-    status: "Pending", 
-    createdAt: 0 
+  static readonly initialState: BackgroundCheck = {
+    id: "",
+    name: "",
+    dob: "",
+    ssn: "",
+    status: "Pending",
+    createdAt: 0
   };
 }
 // CONFIG ENTITY: a singleton DO instance for global app settings
@@ -38,6 +39,16 @@ export class ConfigEntity extends Entity<GuardianScreenConfig> {
     return success;
   }
 }
+export class AuditEntity extends IndexedEntity<AuditEntry> {
+  static readonly entityName = "audit";
+  static readonly indexName = "audits";
+  static readonly initialState: AuditEntry = {
+    id: "",
+    timestamp: 0,
+    action: "",
+    details: {},
+  };
+}
 // Mock external API call
 export async function runMockCheck(): Promise<{ status: CheckStatus, resultData: Record<string, any> }> {
   // Simulate network delay
@@ -59,4 +70,13 @@ export async function runMockCheck(): Promise<{ status: CheckStatus, resultData:
   }
   // 60% chance of clear
   return { status: 'Clear', resultData: { message: 'No records found.' } };
+}
+export async function logAudit(env: Env, action: string, details: Record<string, any>): Promise<void> {
+  const entry: AuditEntry = {
+    id: crypto.randomUUID(),
+    timestamp: Date.now(),
+    action,
+    details,
+  };
+  await AuditEntity.create(env, entry);
 }
