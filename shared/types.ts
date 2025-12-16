@@ -3,22 +3,25 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
 }
-
-// Minimal real-world chat example types (shared by frontend and worker)
-export interface User {
+export type CheckStatus = 'Clear' | 'Hit' | 'Pending' | 'Error';
+export interface BackgroundCheck {
   id: string;
   name: string;
+  dob: string; // YYYY-MM-DD
+  ssn: string; // Last 4 digits
+  status: CheckStatus;
+  createdAt: number; // epoch millis
+  completedAt?: number; // epoch millis
+  resultData?: Record<string, any>;
 }
-
-export interface Chat {
-  id: string;
-  title: string;
+export interface GuardianScreenConfig {
+  id: 'singleton';
+  apiKey: string;
+  credits: number;
+  alertThreshold: number;
+  retentionDays: number;
 }
-
-export interface ChatMessage {
-  id: string;
-  chatId: string;
-  userId: string;
-  text: string;
-  ts: number; // epoch millis
+export interface PaginatedResponse<T> {
+  items: T[];
+  next: string | null;
 }

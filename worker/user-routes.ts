@@ -1,75 +1,78 @@
 import { Hono } from "hono";
+import { z } from 'zod';
+import { zValidator } from '@hono/zod-validator';
 import type { Env } from './core-utils';
-import { UserEntity, ChatBoardEntity } from "./entities";
-import { ok, bad, notFound, isStr } from './core-utils';
-
+import { CheckEntity, ConfigEntity, runMockCheck } from "./check-entities";
+import { ok, bad, notFound } from './core-utils';
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
-  app.get('/api/test', (c) => c.json({ success: true, data: { name: 'CF Workers Demo' }}));
-
-  // USERS
-  app.get('/api/users', async (c) => {
-    await UserEntity.ensureSeed(c.env);
+  // CONFIG ROUTES
+  app.get('/api/config', async (c) => {
+    const config = new ConfigEntity(c.env);
+    const state = await config.getState();
+    // On first run, apiKey might be empty. Let's seed one.
+    if (!state.apiKey) {
+        const newKey = `gs_live_${crypto.randomUUID().replaceAll('-', '')}`;
+        await config.patch({ apiKey: newKey });
+        return ok(c, await config.getState());
+    }
+    return ok(c, state);
+  });
+  app.post('/api/config', 
+    zValidator('json', z.object({
+      apiKey: z.string().optional(),
+      alertThreshold: z.number().min(0).optional(),
+      retentionDays: z.number().min(1).optional(),
+    })),
+    async (c) => {
+      const body = c.req.valid('json');
+      const config = new ConfigEntity(c.env);
+      await config.patch(body);
+      return ok(c, await config.getState());
+    }
+  );
+  // CHECK ROUTES
+  app.get('/api/checks', async (c) => {
     const cq = c.req.query('cursor');
     const lq = c.req.query('limit');
-    const page = await UserEntity.list(c.env, cq ?? null, lq ? Math.max(1, (Number(lq) | 0)) : undefined);
+    const limit = lq ? Math.max(1, Math.min(50, Number(lq) | 0)) : 20;
+    const page = await CheckEntity.list(c.env, cq ?? null, limit);
+    // Sort by creation date descending
+    page.items.sort((a, b) => b.createdAt - a.createdAt);
     return ok(c, page);
   });
-
-  app.post('/api/users', async (c) => {
-    const { name } = (await c.req.json()) as { name?: string };
-    if (!name?.trim()) return bad(c, 'name required');
-    return ok(c, await UserEntity.create(c.env, { id: crypto.randomUUID(), name: name.trim() }));
+  const checkSchema = z.object({
+    name: z.string().min(3, "Name must be at least 3 characters"),
+    dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be YYYY-MM-DD"),
+    ssn: z.string().regex(/^\d{4}$/, "SSN must be the last 4 digits"),
   });
-
-  // CHATS
-  app.get('/api/chats', async (c) => {
-    await ChatBoardEntity.ensureSeed(c.env);
-    const cq = c.req.query('cursor');
-    const lq = c.req.query('limit');
-    const page = await ChatBoardEntity.list(c.env, cq ?? null, lq ? Math.max(1, (Number(lq) | 0)) : undefined);
-    return ok(c, page);
-  });
-
-  app.post('/api/chats', async (c) => {
-    const { title } = (await c.req.json()) as { title?: string };
-    if (!title?.trim()) return bad(c, 'title required');
-    const created = await ChatBoardEntity.create(c.env, { id: crypto.randomUUID(), title: title.trim(), messages: [] });
-    return ok(c, { id: created.id, title: created.title });
-  });
-
-  // MESSAGES
-  app.get('/api/chats/:chatId/messages', async (c) => {
-    const chat = new ChatBoardEntity(c.env, c.req.param('chatId'));
-    if (!await chat.exists()) return notFound(c, 'chat not found');
-    return ok(c, await chat.listMessages());
-  });
-
-  app.post('/api/chats/:chatId/messages', async (c) => {
-    const chatId = c.req.param('chatId');
-    const { userId, text } = (await c.req.json()) as { userId?: string; text?: string };
-    if (!isStr(userId) || !text?.trim()) return bad(c, 'userId and text required');
-    const chat = new ChatBoardEntity(c.env, chatId);
-    if (!await chat.exists()) return notFound(c, 'chat not found');
-    return ok(c, await chat.sendMessage(userId, text.trim()));
-  });
-
-  // DELETE: Users
-  app.delete('/api/users/:id', async (c) => ok(c, { id: c.req.param('id'), deleted: await UserEntity.delete(c.env, c.req.param('id')) }));
-
-  app.post('/api/users/deleteMany', async (c) => {
-    const { ids } = (await c.req.json()) as { ids?: string[] };
-    const list = ids?.filter(isStr) ?? [];
-    if (list.length === 0) return bad(c, 'ids required');
-    return ok(c, { deletedCount: await UserEntity.deleteMany(c.env, list), ids: list });
-  });
-
-  // DELETE: Chats
-  app.delete('/api/chats/:id', async (c) => ok(c, { id: c.req.param('id'), deleted: await ChatBoardEntity.delete(c.env, c.req.param('id')) }));
-
-  app.post('/api/chats/deleteMany', async (c) => {
-    const { ids } = (await c.req.json()) as { ids?: string[] };
-    const list = ids?.filter(isStr) ?? [];
-    if (list.length === 0) return bad(c, 'ids required');
-    return ok(c, { deletedCount: await ChatBoardEntity.deleteMany(c.env, list), ids: list });
-  });
+  app.post('/api/checks', 
+    zValidator('json', checkSchema),
+    async (c) => {
+      const body = c.req.valid('json');
+      const config = new ConfigEntity(c.env);
+      // Check for credits before running a check
+      const hasCredits = await config.deductCredit();
+      if (!hasCredits) {
+        return bad(c, 'Insufficient credits to run a check.');
+      }
+      const newCheck = {
+        ...body,
+        id: crypto.randomUUID(),
+        status: 'Pending' as const,
+        createdAt: Date.now(),
+      };
+      await CheckEntity.create(c.env, newCheck);
+      // Fire-and-forget the mock API call simulation
+      c.executionCtx.waitUntil((async () => {
+        const result = await runMockCheck();
+        const check = new CheckEntity(c.env, newCheck.id);
+        await check.patch({
+          status: result.status,
+          resultData: result.resultData,
+          completedAt: Date.now(),
+        });
+      })());
+      return ok(c, newCheck);
+    }
+  );
 }

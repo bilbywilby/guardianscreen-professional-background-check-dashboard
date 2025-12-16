@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   Menu,
   X,
-  ClipboardList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -18,7 +17,6 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Investigation', href: '/investigation', icon: FileSearch },
   { name: 'Case Files', href: '/history', icon: History },
-  { name: 'Audit Log', href: '/audit', icon: ClipboardList },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 function NavLinks() {
@@ -29,7 +27,6 @@ function NavLinks() {
         <NavLink
           key={item.name}
           to={item.href}
-          end={item.href === '/'}
           className={({ isActive }) =>
             cn(
               'group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
@@ -77,24 +74,24 @@ export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   return (
     <div>
-
+      {/* Mobile sidebar */}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent side="left" className="p-0 w-72">
+          <SidebarContent />
+        </SheetContent>
+      </Sheet>
       {/* Static sidebar for desktop */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <SidebarContent />
       </div>
       <div className="lg:pl-72">
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden -ml-2.5">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Open sidebar</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-72">
-              <SidebarContent />
-            </SheetContent>
-          </Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="lg:hidden -ml-2.5">
+              <Menu className="h-6 w-6" />
+              <span className="sr-only">Open sidebar</span>
+            </Button>
+          </SheetTrigger>
           <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 lg:hidden" aria-hidden="true" />
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 justify-end">
             <div className="flex items-center gap-x-4 lg:gap-x-6">
