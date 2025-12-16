@@ -20,15 +20,19 @@ export class CacheEntity extends IndexedEntity<CacheEntry> {
     static readonly entityName = "cache";
     static readonly indexName = "caches";
     static readonly initialState: CacheEntry = { id: "", cacheKey: "", result: {}, timestamp: 0 };
-    static override keyOf(state: CacheEntry): string { return state.cacheKey; }
+    // This override is now compatible with the base class signature `keyOf<U extends { id: string }>(state: U): string`
+    static override keyOf(state: { id: string }): string { 
+        return (state as CacheEntry).cacheKey; 
+    }
     static async getCache(env: Env, cacheKey: string): Promise<CacheEntry | null> {
         const cache = new CacheEntity(env, cacheKey);
         if (await cache.exists()) {
             const state = await cache.getState();
             // Ensure id is consistent with the key for IndexedEntity
             if (state.id !== state.cacheKey) {
-                state.id = state.cacheKey;
-                await cache.save(state);
+                const updatedState = { ...state, id: state.cacheKey };
+                await cache.save(updatedState);
+                return updatedState;
             }
             return state;
         }

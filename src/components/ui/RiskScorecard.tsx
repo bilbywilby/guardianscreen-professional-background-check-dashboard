@@ -28,6 +28,13 @@ const getOffenseVariant = (level: string): "destructive" | "secondary" | "outlin
         default: return 'outline';
     }
 };
+type Offense = {
+    level: string;
+    date: string;
+    location: string;
+    details: string;
+    source: string;
+};
 export function RiskScorecard({ check }: RiskScorecardProps) {
   const { resultData } = check;
   if (!resultData) {
@@ -41,8 +48,8 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
     );
   }
   const riskScore = resultData.riskScore || 0;
-  const offenses = resultData.offenses || [];
-  const sources = resultData.sources || [];
+  const offenses: Offense[] = resultData.offenses || [];
+  const sources: string[] = resultData.sources || [];
   const handlePrint = () => {
     window.print();
   };
@@ -70,14 +77,19 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
           <p className="text-muted-foreground">Calculated Risk Score</p>
         </div>
         {sources.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-2">
-                <span className="text-sm font-medium text-muted-foreground self-center">Sources Queried:</span>
-                {sources.map((source: keyof typeof sourceConfig) => (
-                    <Badge key={source} variant="secondary" className="flex items-center gap-1.5">
-                        {sourceConfig[source] && <sourceConfig[source].icon className={cn("h-3.5 w-3.5", sourceConfig[source].color)} />}
-                        <span>{sourceConfig[source]?.label || source}</span>
-                    </Badge>
-                ))}
+            <div className="flex flex-wrap justify-center gap-1.5">
+                <span className="text-sm font-medium text-muted-foreground self-center mr-1">Sources:</span>
+                {sources.map((source) => {
+                    const sourceInfo = sourceConfig[source as keyof typeof sourceConfig];
+                    if (!sourceInfo) return null;
+                    const Icon = sourceInfo.icon;
+                    return (
+                        <Badge key={source} variant="secondary" className="flex items-center gap-1.5 hover:shadow-md transition-shadow">
+                            <Icon className={cn("h-3.5 w-3.5 shrink-0", sourceInfo.color)} title={sourceInfo.label} />
+                            <span>{sourceInfo.label || source}</span>
+                        </Badge>
+                    );
+                })}
             </div>
         )}
         {riskScore > 40 && (
@@ -99,22 +111,23 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
             </AccordionTrigger>
             <AccordionContent>
               {offenses.length > 0 ? (
-                <ul className="space-y-3 pl-2">
-                  {offenses.map((offense: any, index: number) => {
+                <ul className={cn("space-y-4 pl-2", offenses.length > 1 && "md:grid md:grid-cols-2 md:gap-x-6 md:space-y-0")}>
+                  {offenses.map((offense, index) => {
                     const sourceInfo = sourceConfig[offense.source as keyof typeof sourceConfig];
                     const SourceIcon = sourceInfo?.icon;
                     return (
-                        <li key={index} className="border-l-2 pl-4 offense-item">
+                        <li key={index} className="border-l-2 pl-4 offense-item pt-1">
                             <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <Badge variant={getOffenseVariant(offense.level)}>{offense.level}</Badge>
                                     <span className="text-sm font-medium">{offense.date} - {offense.location}</span>
                                 </div>
                                 {SourceIcon && (
                                     <TooltipProvider>
                                         <Tooltip>
-                                            <TooltipTrigger>
+                                            <TooltipTrigger className="group relative">
                                                 <SourceIcon className={cn("h-4 w-4 transition-transform group-hover:scale-110", sourceInfo.color)} />
+                                                <span className="absolute -inset-2.5 rounded-full group-hover:bg-primary/10 transition-colors"></span>
                                             </TooltipTrigger>
                                             <TooltipContent>
                                                 <p>Source: {sourceInfo.label}</p>
@@ -123,7 +136,7 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
                                     </TooltipProvider>
                                 )}
                             </div>
-                            <p className="text-sm text-muted-foreground mt-1">{offense.details}</p>
+                            <p className="text-sm text-muted-foreground mt-1.5">{offense.details}</p>
                         </li>
                     );
                   })}
