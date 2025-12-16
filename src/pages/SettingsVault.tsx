@@ -4,12 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { api } from '@/lib/api-client';
 import type { GuardianScreenConfig } from '@shared/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { Copy, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -17,6 +19,7 @@ const settingsSchema = z.object({
   apiKey: z.string().optional(),
   alertThreshold: z.number().min(0).max(100),
   retentionDays: z.number().min(1).max(365),
+  mockMode: z.boolean(),
 });
 type SettingsFormData = z.infer<typeof settingsSchema>;
 export function SettingsVault() {
@@ -35,6 +38,7 @@ export function SettingsVault() {
         apiKey: config.apiKey,
         alertThreshold: config.alertThreshold,
         retentionDays: config.retentionDays,
+        mockMode: config.mockMode,
       });
     }
   }, [config, form]);
@@ -153,10 +157,32 @@ export function SettingsVault() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Changes
-              </Button>
+              <FormField
+                control={form.control}
+                name="mockMode"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Deep Search Mode</FormLabel>
+                      <AlertDescription>
+                        {field.value ? "Disabled (Basic Mock)" : "Enabled (Multi-Source Simulation)"}
+                      </AlertDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={!field.value}
+                        onCheckedChange={(checked) => field.onChange(!checked)}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-end">
+                <Button type="submit" disabled={mutation.isPending}>
+                  {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
+              </div>
             </form>
           </Form>
         </CardContent>

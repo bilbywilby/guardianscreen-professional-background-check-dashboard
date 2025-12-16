@@ -54,6 +54,7 @@ export interface AuditEntry {
   ip: string;
 }
 export interface CacheEntry {
+  id: string;
   cacheKey: string;
   result: any;
   timestamp: number;

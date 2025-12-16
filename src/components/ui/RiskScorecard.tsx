@@ -2,11 +2,18 @@ import type { BackgroundCheck } from '@shared/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Printer, ShieldCheck, ShieldAlert, FileWarning } from 'lucide-react';
+import { Printer, ShieldCheck, ShieldAlert, FileWarning, AlertOctagon } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 interface RiskScorecardProps {
   check: BackgroundCheck;
 }
+const sourceConfig = {
+  criminal: { icon: ShieldCheck, color: 'text-blue-500', label: 'Criminal Database' },
+  nsopw: { icon: ShieldAlert, color: 'text-red-500', label: 'Sex Offender Registry (NSOPW)' },
+  ofac: { icon: AlertOctagon, color: 'text-orange-500', label: 'Sanctions List (OFAC)' },
+};
 const getRiskColor = (score: number) => {
   if (score > 75) return 'text-red-500';
   if (score > 40) return 'text-yellow-500';
@@ -15,6 +22,8 @@ const getRiskColor = (score: number) => {
 const getOffenseVariant = (level: string): "destructive" | "secondary" | "outline" => {
     switch (level.toLowerCase()) {
         case 'felony': return 'destructive';
+        case 'sex offense': return 'destructive';
+        case 'sanction': return 'destructive';
         case 'misdemeanor': return 'secondary';
         default: return 'outline';
     }
@@ -33,6 +42,7 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
   }
   const riskScore = resultData.riskScore || 0;
   const offenses = resultData.offenses || [];
+  const sources = resultData.sources || [];
   const handlePrint = () => {
     window.print();
   };
@@ -59,6 +69,17 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
           <div className={`text-6xl font-bold ${getRiskColor(riskScore)}`}>{riskScore}%</div>
           <p className="text-muted-foreground">Calculated Risk Score</p>
         </div>
+        {sources.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground self-center">Sources Queried:</span>
+                {sources.map((source: keyof typeof sourceConfig) => (
+                    <Badge key={source} variant="secondary" className="flex items-center gap-1.5">
+                        {sourceConfig[source] && <sourceConfig[source].icon className={cn("h-3.5 w-3.5", sourceConfig[source].color)} />}
+                        <span>{sourceConfig[source]?.label || source}</span>
+                    </Badge>
+                ))}
+            </div>
+        )}
         {riskScore > 40 && (
           <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 rounded-lg flex items-start gap-3">
             <ShieldAlert className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
@@ -79,15 +100,33 @@ export function RiskScorecard({ check }: RiskScorecardProps) {
             <AccordionContent>
               {offenses.length > 0 ? (
                 <ul className="space-y-3 pl-2">
-                  {offenses.map((offense: any, index: number) => (
-                    <li key={index} className="border-l-2 pl-4 offense-item">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={getOffenseVariant(offense.level)}>{offense.level}</Badge>
-                        <span className="text-sm font-medium">{offense.date} - {offense.location}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">{offense.details}</p>
-                    </li>
-                  ))}
+                  {offenses.map((offense: any, index: number) => {
+                    const sourceInfo = sourceConfig[offense.source as keyof typeof sourceConfig];
+                    const SourceIcon = sourceInfo?.icon;
+                    return (
+                        <li key={index} className="border-l-2 pl-4 offense-item">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Badge variant={getOffenseVariant(offense.level)}>{offense.level}</Badge>
+                                    <span className="text-sm font-medium">{offense.date} - {offense.location}</span>
+                                </div>
+                                {SourceIcon && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <SourceIcon className={cn("h-4 w-4 transition-transform group-hover:scale-110", sourceInfo.color)} />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Source: {sourceInfo.label}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">{offense.details}</p>
+                        </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">No adverse records found.</p>
